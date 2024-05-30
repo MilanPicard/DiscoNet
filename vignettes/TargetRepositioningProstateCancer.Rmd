@@ -7,13 +7,16 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-# Introduction
-***DiscoNet*** is an R package containing an ensemble of functions to automatically extract node features from complex biological network that can later be used by machine learning algorithms for prediction, classification, etc.
-The main categories of features that can be extracted from a set of nodes (`start_nodes`) using  ***DiscoNet*** are: 
- - propagation-based features: simple one-to-one distances between `start_nodes` and other nodes in the network, calculated through either shortest paths or random walks. The distances can be directed, inversely directed, or undirected. (extract_by_shp, extract_by_shp_inv, extract_by_shp_ind, extract_by_rwr,extract_by_rwr_inv, extract_by_rwr_ind).
- - topological metrics and similarities: common metrics such as degree, betweenness, or centrality are extracted, as well as node similarity based on node neighborhoods (extract_topolo).
- - module-based: Based on clusters previously calculated form the network (else it will compute clusters based on already available methods from the igraph R package), will detect if some `start_nodes` are within these clusters and their proximity to each cluster based on the available distance measures (available within propagation-based features) (extract_cluster). 
- - signature-based: Based on a user-own disease signatures (list of genes or proteins), different proximity between `start_nodes` and these genes can be calculated (In signature, percentage of neighboors in signatures, distance to the whole signature, and distance to subsets of signatures based on clusters separation) (extract_by_sig).
+## DiscoNet R package (vignette)
+### Introduction
+***DiscoNet*** is an R package containing an ensemble of functions to 
+automatically extract node features from complex biological network that can later be used by machine learning algorithms for prediction, classification, etc.
+
+The main categories of features that can be extracted from a set of nodes (`start_nodes`) using  ***DiscoNet*** are:  
+* propagation-based features: simple one-to-one distances between `start_nodes` and other nodes in the network, calculated through either shortest paths or random walks. The distances can be directed, inversely directed, or undirected. (*extract_by_shp*, *extract_by_shp_inv*, *extract_by_shp_ind*, *extract_by_rwr*,*extract_by_rwr_inv*, *extract_by_rwr_ind*).
+* topological metrics and similarities: common metrics such as degree, betweenness, or centrality are extracted, as well as node similarity based on node neighborhoods (extract_topolo).
+* module-based: Based on clusters previously calculated form the network (else it will compute clusters based on already available methods from the igraph R package), will detect if some `start_nodes` are within these clusters and their proximity to each cluster based on the available distance measures (available within propagation-based features) (extract_cluster). 
+* signature-based: Based on a user-own disease signatures (list of genes or proteins), different proximity between `start_nodes` and these genes can be calculated (In signature, percentage of neighboors in signatures, distance to the whole signature, and distance to subsets of signatures based on clusters separation) (extract_by_sig).
 
 This vignette shows a script example on how to use DiscoNet to extract features from the A3LNetwork to do therapeutic target repositioning on prostate cancer (supervised classification).
 
@@ -37,9 +40,10 @@ knitr::opts_chunk$set(
 library(DiscoNet)
 library(tidyverse)
 library(igraph)
+user_verbose = FALSE
 ```
 
-# Feature extraction
+### Feature extraction
 ***Disconet*** needs at least a biological network from which to extract features. If no `start_nodes` are given (which are the nodes for which to extract features), features will be extracted for every node in the network.
 In this package, a three layer network called A3LNetwork (protein+gene+go) of medium size is preloaded. It is comprised of a PPI network (from stringdb), a gene layer connected in a directed manner to the PPI layer, and a GO layer connected to the gene layer. How the network was built can be accessed in data-raw/DATASET.R
 The type of nodes are described as either a prefix in the node name ('Prot_', 'Gene_', 'GO_'), or as node attribute (`type`)
@@ -47,11 +51,6 @@ The type of nodes are described as either a prefix in the node name ('Prot_', 'G
 A3LNetwork = DiscoNet::A3LNetwork
 summary(A3LNetwork)
 table(V(A3LNetwork)$type)
-# IGRAPH 5f51ddf DN-B 7538 53919 -- 
-# + attr: name (v/c), type (v/c)
-# 
-#    gene      go protein 
-#    3757    1916    1865 
 ```
 
 For target repositioning against prostate cancer, we are interested in extracting features for every protein in the network, as any of them could be of interest.
@@ -61,14 +60,14 @@ Let's calculate some basic features like topological metrics or simple distances
 all_proteins = vnames(A3LNetwork, pattern = "Prot_")
 
 # Calculate topological features for the 1 865 proteins in the network
-TopologicalMetrics = extract_topolo(A3LNetwork, all_proteins)
+TopologicalMetrics = extract_topolo(A3LNetwork, all_proteins, verbose = user_verbose)
 dim(TopologicalMetrics)
 
 # Calculate for the 1 865 proteins their random walk distance to every other nodes
 # This will take a bit of time, especially without nCores = 1 (no parallel computing)
 # Faster distance calculation include the shortest path ones.
 # shp_dist = extract_by_shp(Graph = A3LNetwork, start_nodes = all_proteins)
-rwr_dist = extract_by_rwr(Graph = A3LNetwork, start_nodes = all_proteins, nCores = 1)
+rwr_dist = extract_by_rwr(Graph = A3LNetwork, start_nodes = all_proteins, nCores = 1, verbose = user_verbose)
 dim(rwr_dist)
 # Additional distance measures can be obtained with extract_by_rwr_inv or extract_by_rwr_ind
 ```
@@ -89,7 +88,7 @@ Protein_clusters = DiscoNet::data_prostate_cancer$Clusters
 
 # Proximity of every  protein to each cluster is calculated based on the distance matrix that we just calculated. If no dist_matrix is given, extract_cluster will internally run extract_by_shp to get distances
 # If no clusters are given, it will calculate its own based on the whole network using cluster_walktrap and cluster_louvain from the igraph R package.
-Dist_cluster = extract_cluster(A3LNetwork, all_proteins, dist_matrix = rwr_dist, Cluster_list = Protein_clusters)
+Dist_cluster = extract_cluster(A3LNetwork, all_proteins, dist_matrix = rwr_dist, Cluster_list = Protein_clusters, verbose = user_verbose)
 dim(Dist_cluster)
 ```
 
@@ -108,11 +107,11 @@ Gene_clusters = lapply(Gene_clusters, function(x) intersect(x, vnames(A3LNetwork
 Signature_for_prostate_cancer = lapply(data_prostate_cancer$Signatures, function(x) intersect(x, vnames(A3LNetwork)))
 
 # Extract signature-based features for 1 865 proteins
-Dist_signature = extract_by_sig(A3LNetwork, all_proteins, Signature_for_prostate_cancer, Gene_clusters, rwr_dist)
-Dist_signature %>% dim
+Dist_signature = extract_by_sig(A3LNetwork, all_proteins, Signature_for_prostate_cancer, Gene_clusters, rwr_dist, verbose = user_verbose)
+dim(Dist_signature)
 ```
 
-# Feature selection
+### Feature selection
 Once some features are extracted, it is often necessary to reduce their dimensionality before applying machine learning algorithm
 ***DiscoNet*** make accessible to supervised variable selection method, a quick but robust selection based on information gain with bootstraping, or a longer but more powerful selection based on Adaptive LASSO.
 ```{r Variable selection}
@@ -139,20 +138,20 @@ test.x = Full_features[-index, -1]
 test.y = class[-index]
 
 # Run information gain on different bootstraps
-infgain_full = InformationGain_Bootstrap(df = train.x, class = train.y, nbr_of_boot = 3, seed = 123)
+infgain_full = InformationGain_Bootstrap(df = train.x, class = train.y, nbr_of_boot = 3, seed = 123, verbose = user_verbose)
 # Take the best 100 features (with the highest information gain)
 best_features = infgain_full$feature[1:100]
 ```
 
-# Machine learning classification
+### Machine learning classification
 ```{r Prediction using KKNN}
-# Using your favorite machine learning algorithms, you can now use these features to predict new therapeutic targets for prostate cancer
-# Example:
-# if (!require("BiocManager", quietly = TRUE))
-#     install.packages("BiocManager")
-# 
-# if (!require("kknn", quietly = TRUE))
-#     BiocManager::install("kknn")
+# # Using your favorite machine learning algorithms, you can now use these features to predict new therapeutic targets for prostate cancer
+# # Example:
+# # if (!require("BiocManager", quietly = TRUE))
+# #     install.packages("BiocManager")
+# # 
+# # if (!require("kknn", quietly = TRUE))
+# #     BiocManager::install("kknn")
 # 
 # library("kknn")
 # 
