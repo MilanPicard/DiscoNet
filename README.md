@@ -1,5 +1,5 @@
 ## DiscoNet R package
-***
+
 ***DiscoNet*** is an R package to automatically extract node features from multi-layered biological networks to be exploited by machine learning algorithms for prediction, classification, unsupervised learning, etc.
 
 
@@ -12,3 +12,15 @@ The distances can be directed, inversely directed, or undirected. (`extract_by_s
  * **Signature-based**: Based on a user-own list of nodes (signature), different distances between *start_nodes* and these nodes can be calculated 
  (`extract_by_sig`).  
 
+### Installation
+#### Latest GitHub Version
+Install the devtools package in R, then load it and install the latest stable version of timeOmics from GitHub
+`## install devtools if not installed
+if (!requireNamespace("devtools", quietly = TRUE))
+    install.packages("devtools")
+## install timeOmics
+devtools::install_github("MilanPicard/DiscoNet")
+`
+
+### Maintainer
+Milan Picard (milan.picard.1@ulaval.ca)
