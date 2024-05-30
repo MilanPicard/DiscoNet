@@ -7,11 +7,11 @@ Four categories of features can be extracted using  ***DiscoNet*** :
 
  * **Propagation-based features**: simple one-to-one distances between nodes. Two types of algorithms are available, shortest paths and random walk with restart. Distances can be directed, inversely directed, or undirected.  
    Functions: `extract_by_shp`, `extract_by_shp_inv`, `extract_by_shp_ind`, `extract_by_rwr`,`extract_by_rwr_inv`, `extract_by_rwr_ind`  
- * **Topological metrics and similarities**: common metrics such as degree, betweenness, or centrality are extracted, as well as node similarity based on node neighborhoods.
+ * **Topological metrics and similarities**: common metrics such as degree, betweenness, or centrality are extracted, as well as node similarity based on node neighborhoods.  
    Functions: `extract_topolo`.  
- * **Module-based**: Will identify clusters from the network and compute the distance between each *start_nodes* these clusters, also works with a user-wn list of pre-calculated clusters.  
+ * **Module-based**: clusters are identified and distances between nodes and clusters are computed. Also works with a user-wn list of pre-calculated clusters.  
    Function: `extract_cluster`.  
- * **Signature-based**: Based on a user-own list of nodes (signature), different distances between *start_nodes* and these nodes can be calculated.  
+ * **Signature-based**: Based on a user-own list of nodes (signature), different proximities between *start_nodes* and these nodes can be calculated.  
    Functions: `extract_by_sig`.  
 
 ### Installation
