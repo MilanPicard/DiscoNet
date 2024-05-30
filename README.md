@@ -1,7 +1,9 @@
 ## DiscoNet R package
 
 ***DiscoNet*** is an R package to automatically extract node features from multi-layered networks.
-:mirror_ball:
+
+![alt text](https://github.com/MilanPicard/DiscoNet/]/image.jpg?raw=true)
+
 Four categories of features can be extracted using  ***DiscoNet*** :  
 
  * **Propagation-based features**: simple one-to-one distances between nodes. Two types of algorithms are available, shortest paths and random walk with restart. Distances can be directed, inversely directed, or undirected.  
