@@ -15,13 +15,13 @@ The distances can be directed, inversely directed, or undirected. (`extract_by_s
 ### Installation
 #### Latest GitHub Version
 Install the devtools package in R, then load it and install the latest stable version of timeOmics from GitHub
-`
+```
 ## install devtools if not installed
 if (!requireNamespace("devtools", quietly = TRUE))
     install.packages("devtools")
 ## install DiscoNet
 devtools::install_github("MilanPicard/DiscoNet")
-`
+```
 
 ### Maintainer
 Milan Picard (milan.picard.1@ulaval.ca)
