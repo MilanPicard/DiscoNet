@@ -15,7 +15,8 @@ The distances can be directed, inversely directed, or undirected. (`extract_by_s
 ### Installation
 #### Latest GitHub Version
 Install the devtools package in R, then load it and install the latest stable version of timeOmics from GitHub
-```
+
+```r
 ## install devtools if not installed
 if (!requireNamespace("devtools", quietly = TRUE))
     install.packages("devtools")
