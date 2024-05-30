@@ -8,17 +8,21 @@ vignette: >
 ---
 
 ## DiscoNet R package (vignette)
+***
 ### Introduction
 ***DiscoNet*** is an R package containing an ensemble of functions to 
 automatically extract node features from complex biological network that can later be used by machine learning algorithms for prediction, classification, etc.
 
-The main categories of features that can be extracted from a set of nodes (`start_nodes`) using  ***DiscoNet*** are:  
-* propagation-based features: simple one-to-one distances between `start_nodes` and other nodes in the network, calculated through either shortest paths or random walks. The distances can be directed, inversely directed, or undirected. (*extract_by_shp*, *extract_by_shp_inv*, *extract_by_shp_ind*, *extract_by_rwr*,*extract_by_rwr_inv*, *extract_by_rwr_ind*).
-* topological metrics and similarities: common metrics such as degree, betweenness, or centrality are extracted, as well as node similarity based on node neighborhoods (extract_topolo).
-* module-based: Based on clusters previously calculated form the network (else it will compute clusters based on already available methods from the igraph R package), will detect if some `start_nodes` are within these clusters and their proximity to each cluster based on the available distance measures (available within propagation-based features) (extract_cluster). 
-* signature-based: Based on a user-own disease signatures (list of genes or proteins), different proximity between `start_nodes` and these genes can be calculated (In signature, percentage of neighboors in signatures, distance to the whole signature, and distance to subsets of signatures based on clusters separation) (extract_by_sig).
+The main categories of features that can be extracted from a set of nodes (*start_nodes*) using  ***DiscoNet*** are:  
 
-This vignette shows a script example on how to use DiscoNet to extract features from the A3LNetwork to do therapeutic target repositioning on prostate cancer (supervised classification).
+ * **Propagation-based features**: simple one-to-one distances between *start_nodes* and other nodes in the network.  
+The distances can be directed, inversely directed, or undirected. (`extract_by_shp`, `extract_by_shp_inv`, `extract_by_shp_ind`, `extract_by_rwr`,`extract_by_rwr_inv`, `extract_by_rwr_ind`).  
+ * **Topological metrics and similarities**: common metrics such as degree, betweenness, or centrality are extracted, as well as node similarity based on node neighborhoods (`extract_topolo`).  
+ * **Module-based**: Will identify clusters from the network and compute the distance between each *start_nodes* these clusters, also works with a user-wn list of pre-calculated clusters (`extract_cluster`).  
+ * **Signature-based**: Based on a user-own list of nodes (signature), different distances between *start_nodes* and these nodes can be calculated 
+ (`extract_by_sig`).  
+
+This vignette shows a script example on how to use **DiscoNet** to extract features from the A3LNetwork to do therapeutic target repositioning on prostate cancer (supervised classification).
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
@@ -43,36 +47,51 @@ library(igraph)
 user_verbose = FALSE
 ```
 
+***
 ### Feature extraction
-***Disconet*** needs at least a biological network from which to extract features. If no `start_nodes` are given (which are the nodes for which to extract features), features will be extracted for every node in the network.
-In this package, a three layer network called A3LNetwork (protein+gene+go) of medium size is preloaded. It is comprised of a PPI network (from stringdb), a gene layer connected in a directed manner to the PPI layer, and a GO layer connected to the gene layer. How the network was built can be accessed in data-raw/DATASET.R
-The type of nodes are described as either a prefix in the node name ('Prot_', 'Gene_', 'GO_'), or as node attribute (`type`)
+***Disconet*** needs at least a biological network from which to extract features.  
+If no *start_nodes* are given, features will be extracted for every node in the network.  
+A three layer network called A3LNetwork (protein+gene+go) of medium size is preloaded.  
+It is comprised of:
+
+ * a PPI network (from stringdb)
+ * a gene layer connected in a directed manner to the PPI layer 
+ * a GO layer connected to the gene layer. 
+
+How the network was built can be accessed in data-raw/DATASET.R  
+Nodes `types` are described in their name ('Prot_', 'Gene_', 'GO_'), or as node attribute.
 ```{r load necessary data}
 A3LNetwork = DiscoNet::A3LNetwork
 summary(A3LNetwork)
 table(V(A3LNetwork)$type)
 ```
 
-For target repositioning against prostate cancer, we are interested in extracting features for every protein in the network, as any of them could be of interest.
-Let's calculate some basic features like topological metrics or simple distances to other nodes in the network
+This vignette is a perform a simple target repositioning against prostate cancer  
+We will extract features for every protein in the network, as any of them could interesting.
+Let's calculate some basic features.
 ```{r Extracting basic features for each protein}
 # Get all proteins beginning with Prot_
 all_proteins = vnames(A3LNetwork, pattern = "Prot_")
 
 # Calculate topological features for the 1 865 proteins in the network
-TopologicalMetrics = extract_topolo(A3LNetwork, all_proteins, verbose = user_verbose)
+TopologicalMetrics = extract_topolo(Graph = A3LNetwork, 
+                                    start_nodes = all_proteins, 
+                                    verbose = user_verbose)
 dim(TopologicalMetrics)
 
 # Calculate for the 1 865 proteins their random walk distance to every other nodes
 # This will take a bit of time, especially without nCores = 1 (no parallel computing)
 # Faster distance calculation include the shortest path ones.
 # shp_dist = extract_by_shp(Graph = A3LNetwork, start_nodes = all_proteins)
-rwr_dist = extract_by_rwr(Graph = A3LNetwork, start_nodes = all_proteins, nCores = 1, verbose = user_verbose)
+rwr_dist = extract_by_rwr(Graph = A3LNetwork, 
+                          start_nodes = all_proteins, 
+                          nCores = 1, 
+                          verbose = user_verbose)
 dim(rwr_dist)
 # Additional distance measures can be obtained with extract_by_rwr_inv or extract_by_rwr_ind
 ```
 
-More complex features can also be extracted when exploiting community detection on the network, including module-based features as well as signature-based features.
+We can also extract module-based features
 ```{r Extracting module-based features for each protein}
 # Based on precalculated clusters done on A3LNetwork
 Protein_clusters = DiscoNet::data_prostate_cancer$Clusters
@@ -88,11 +107,17 @@ Protein_clusters = DiscoNet::data_prostate_cancer$Clusters
 
 # Proximity of every  protein to each cluster is calculated based on the distance matrix that we just calculated. If no dist_matrix is given, extract_cluster will internally run extract_by_shp to get distances
 # If no clusters are given, it will calculate its own based on the whole network using cluster_walktrap and cluster_louvain from the igraph R package.
-Dist_cluster = extract_cluster(A3LNetwork, all_proteins, dist_matrix = rwr_dist, Cluster_list = Protein_clusters, verbose = user_verbose)
+Dist_cluster = extract_cluster(A3LNetwork, 
+                               all_proteins, 
+                               dist_matrix = rwr_dist, 
+                               Cluster_list = Protein_clusters, 
+                               verbose = user_verbose)
 dim(Dist_cluster)
 ```
 
-Signature-based features necessitates a list of genes (or proteins) to be used as a signature that the user must have. For this specific task, a preloaded signature is included within ***DiscoNet***
+Signature-based features necessitates a list of genes (or proteins) to be used as a signature.  
+The user should provide that signature.  
+A preloaded signature is included within ***DiscoNet***
 ```{r Extracting signature-based features for each protein}
 data_prostate_cancer = DiscoNet::data_prostate_cancer
 
@@ -104,16 +129,28 @@ Gene_clusters = lapply(Gene_clusters, function(x) intersect(x, vnames(A3LNetwork
 # Get preloaded gene signatures for prostate cancer, it contains a list of signatures and also known therapeutic targets.
 
 # Remove genes not present in the network (it is rather a small network), resulting in 25 mutated genes and 5 differentially expressed genes.
-Signature_for_prostate_cancer = lapply(data_prostate_cancer$Signatures, function(x) intersect(x, vnames(A3LNetwork)))
+Signature_for_prostate_cancer = lapply(data_prostate_cancer$Signatures, 
+                                       function(x) intersect(x, vnames(A3LNetwork)))
 
 # Extract signature-based features for 1 865 proteins
-Dist_signature = extract_by_sig(A3LNetwork, all_proteins, Signature_for_prostate_cancer, Gene_clusters, rwr_dist, verbose = user_verbose)
+Dist_signature = extract_by_sig(A3LNetwork, 
+                                all_proteins, 
+                                Signature_for_prostate_cancer, 
+                                Gene_clusters, 
+                                rwr_dist, 
+                                verbose = user_verbose)
 dim(Dist_signature)
 ```
 
+***
 ### Feature selection
-Once some features are extracted, it is often necessary to reduce their dimensionality before applying machine learning algorithm
-***DiscoNet*** make accessible to supervised variable selection method, a quick but robust selection based on information gain with bootstraping, or a longer but more powerful selection based on Adaptive LASSO.
+Once some features are extracted, it is often necessary to reduce their dimensionality before applying machine learning algorithm.  
+***DiscoNet*** make accessible two supervised variable selection method:
+
+ * a quick but robust selection based on information gain with bootstraping  
+ * a longer but more powerful selection based on Adaptive LASSO.  
+
+
 ```{r Variable selection}
 # merge all feature datasets together. 
 Full_features = purrr::reduce(.x = list(TopologicalMetrics, rwr_dist, Dist_cluster, Dist_signature), 
@@ -142,8 +179,13 @@ infgain_full = InformationGain_Bootstrap(df = train.x, class = train.y, nbr_of_b
 # Take the best 100 features (with the highest information gain)
 best_features = infgain_full$feature[1:100]
 ```
+There! The 100 best features extracted from the network based on this problem are retrieved.  
 
+
+***
 ### Machine learning classification
+Optionnaly, machine learning can be done to predict new targets for prostate cancer.  
+
 ```{r Prediction using KKNN}
 # # Using your favorite machine learning algorithms, you can now use these features to predict new therapeutic targets for prostate cancer
 # # Example:

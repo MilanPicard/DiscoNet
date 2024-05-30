@@ -434,8 +434,10 @@ extract_by_rwr.intern = function(Graph, start_nodes, nCores, verbose){
   if(nCores == 1){
     result_list = list()
     for(i in 1:nbr(start_nodes)){
-      if(i%%1 == 0){
-        cat('\r', paste0(i,'/',nbr(start_nodes), " seeds"))
+      if(verbose){
+        if(i%%1 == 0){
+          cat('\r', paste0(i,'/',nbr(start_nodes), " seeds"))
+        }
       }
       res = RWR(Graph = Graph, Seeds = start_nodes[i], adjacency = ADJ, r = restart)
       add(result_list, res$Score[match(vnames(Graph), res$Node)])
@@ -444,7 +446,7 @@ extract_by_rwr.intern = function(Graph, start_nodes, nCores, verbose){
     df = as.data.frame(df)
   } else {
     df = as.data.frame(matrix(ncol = igraph::vcount(Graph), nrow = nbr(start_nodes)))
-    results = parallel::mclapply(1:nbr(start_nodes), function(i) {if(i%%50 == 0){cat('\r', paste0(i,'/',nbr(start_nodes), " seeds"))} ; RWR(Graph = Graph, Seeds = start_nodes[i], adjacency = ADJ, r = restart)}, mc.cores = nCores)
+    results = parallel::mclapply(1:nbr(start_nodes), function(i) {if(i%%50 == 0 & verbose){cat('\r', paste0(i,'/',nbr(start_nodes), " seeds"))} ; RWR(Graph = Graph, Seeds = start_nodes[i], adjacency = ADJ, r = restart)}, mc.cores = nCores)
 
     if(verbose){message("\n Agglomerating results...")}
     result_list = list()
