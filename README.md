@@ -1,6 +1,6 @@
 ## DiscoNet R package
 
-***DiscoNet*** is an R package to automatically extract node features from multi-layered biological networks to be exploited by machine learning algorithms for prediction, classification, unsupervised learning, etc.
+***DiscoNet*** is an R package to automatically extract node features from multi-layered networks that can be fed by machine learning algorithms for prediction tasks. It also implements variable selection (Information Gain & Adapative LASSO) in combination with bootstrapings to help in reducing the number of variable extracted from the network (quickly go over 10k variables, if not more depending of the size of the network).
 
 
 Four categories of features can be extracted using  ***DiscoNet*** :  
@@ -33,8 +33,9 @@ It can be accessed using:
 ```r
 vignette(TargetRepositioningProstateCancer)
 ```
-To run DiscoNet, you'll need at minimum a biological network. A simple PPI network will do, but larger multi-layer networks can be exploited as well.
-Within the package, a 3-layer network is preloaded an
+
+To analyze your own network using DiscoNet, a simple PPI network will do, but larger multi-layer networks can be exploited as well.
+
 
 ### Maintainer
 Milan Picard (milan.picard.1@ulaval.ca)
