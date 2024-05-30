@@ -2,7 +2,7 @@
 
 ***DiscoNet*** is an R package to automatically extract node features from multi-layered networks.
 
-![alt text](https://github.com/MilanPicard/DiscoNet/]/image.jpg?raw=true)
+![alt text](https://github.com/MilanPicard/DiscoNet/blob/main/Image1.png?raw=true)
 
 Four categories of features can be extracted using  ***DiscoNet*** :  
 
