@@ -1,7 +1,6 @@
 ## DiscoNet R package
 
-***DiscoNet*** is an R package to automatically extract node features from multi-layered networks that can be fed by machine learning algorithms for prediction tasks. It also implements variable selection (Information Gain & Adapative LASSO) in combination with bootstrapings to help in reducing the number of variable extracted from the network (quickly go over 10k variables, if not more depending of the size of the network).
-
+***DiscoNet*** is an R package to automatically extract node features from multi-layered networks.
 
 Four categories of features can be extracted using  ***DiscoNet*** :  
 
@@ -13,6 +12,9 @@ Four categories of features can be extracted using  ***DiscoNet*** :
    Function: `extract_cluster`.  
  * **Signature-based**: Based on a user-own list of nodes (signature), different proximities between *start_nodes* and these nodes can be calculated.  
    Functions: `extract_by_sig`.  
+
+***DiscoNet*** also implements different variable selection methods (*Information Gain* & *Adapative LASSO*) in combination with bootstrapings to help in reducing the number of variable extracted from the network. On a medium size network (n_nodes ~= 10k), ***DiscoNet*** can easily produce more than 70k different variables based on its topology.
+
 
 ### Installation
 Install the devtools package in R, then load it and install the latest stable version of DiscoNet from GitHub
@@ -34,7 +36,7 @@ It can be accessed using:
 vignette(TargetRepositioningProstateCancer)
 ```
 
-To analyze your own network using DiscoNet, a simple PPI network will do, but larger multi-layer networks can be exploited as well.
+To analyze your own network using DiscoNet, a simple PPI network will do, but larger multi-layer networks can be exploited as well as some functions can exploit multiple cores in parallel. 
 
 
 ### Maintainer
