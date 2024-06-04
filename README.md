@@ -1,5 +1,5 @@
-## ![](https://github.com/MilanPicard/DiscoNet/blob/main/dance-floor.png | width=10) DiscoNet R package
-
+## DiscoNet R package
+![alt text](https://github.com/MilanPicard/DiscoNet/blob/main/dance-floor.png | width=10)
 ***DiscoNet*** is an R package to automatically extract node features from multi-layered networks.
 
 ![alt text](https://github.com/MilanPicard/DiscoNet/blob/main/Image1.png?raw=true)
