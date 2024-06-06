@@ -41,7 +41,7 @@ SomeFeatures = extract_topolo(Graph = A3LNetwork)
 
 ## Extract undirected Random Walks distance between every nodes in the network
 RWRFeatures = extract_by_rwr_ind(Graph = A3LNetwork, 
-                             nCores = 1) # Add more cores for parallel computing
+                                 nCores = 1) # Add more cores for parallel computing
 ```
 
 ### Full tutorial
