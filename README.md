@@ -1,7 +1,7 @@
 ## <img src="https://github.com/MilanPicard/DiscoNet/blob/main/Meta/dance-floor1.png?raw=true" width="40" height="40"> DiscoNet R package
 ***DiscoNet*** is an R package to automatically extract node features from multi-layered networks.
 
-<img src="https://github.com/MilanPicard/DiscoNet/blob/main/Meta/Image1.png?raw=true" width="850" height="430">
+<img src="https://github.com/MilanPicard/DiscoNet/blob/main/Meta/Image1.png?raw=true" width="850" height="440">
 
 Four categories of features can be extracted using  ***DiscoNet*** :  
 
