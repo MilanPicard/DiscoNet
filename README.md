@@ -45,7 +45,7 @@ RWRFeatures = extract_by_rwr_ind(Graph = A3LNetwork,
 ```
 
 ### Full tutorial
-A vignette showing basic usage of the package is available : TargetRepositioningProstateCancer.
+A vignette showing basic usage of the package is available : vignette/TargetRepositioningProstateCancer.Rmd.  
 It can be accessed using:  
 ```r
 vignette(TargetRepositioningProstateCancer)
