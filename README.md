@@ -16,7 +16,8 @@ Four categories of features can be extracted using  ***DiscoNet*** :
  * **Signature-based**: Based on a user-own list of nodes (signature), different proximities between *start_nodes* and these nodes can be calculated.  
    Functions: `extract_by_sig`.  
 
-***DiscoNet*** also implements different variable selection methods (*Information Gain* & *Adapative LASSO*) in combination with bootstrapings to help in reducing the number of variable extracted from the network. On a medium size network (n_nodes ~= 10k), ***DiscoNet*** can easily produce more than 70k different variables based on its topology.
+***DiscoNet*** also implements different *variable selection* methods to reduce the number of variable extracted from the network. They include a method based on Information gain (**InformationGain**) and a selection using Adaptative LASSO (**AdaLASSO**). Both can be used with bootstrapings to make the selection more robust and stable (**InformationGain_Bootstrap**, **AdaLASSO_Bootstrap**).  
+ On a medium size network (n_nodes ~= 10k), ***DiscoNet*** can easily produce more than 70k different variables based on its topology.
 
 
 ### Installation
