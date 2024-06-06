@@ -40,8 +40,8 @@ A3LNetwork = DiscoNet::A3LNetwork
 ## Extract common node metrics and topological similarities
 SomeFeatures = extract_topolo(Graph = A3LNetwork)
 
-## Extract Random Walks distance between every nodes in the network
-RWRFeatures = extract_by_rwr(Graph = A3LNetwork, 
+## Extract undirected Random Walks distance between every nodes in the network
+RWRFeatures = extract_by_rwr_ind(Graph = A3LNetwork, 
                              nCores = 1) # Add more cores for parallel computing
 ```
 
