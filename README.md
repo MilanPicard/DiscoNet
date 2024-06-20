@@ -58,6 +58,8 @@ install_github("MilanPicard/DiscoNet", build_vignettes = TRUE)
 
 To analyze your own network using DiscoNet, a simple PPI network will do, but larger multi-layer networks can be exploited as well as some functions can exploit multiple cores in parallel. 
 
+### To cite
+Picard, Milan, et al. "Target repositioning using multi-layer networks and machine learning: the case of prostate cancer." Computational and Structural Biotechnology Journal (2024). https://doi.org/10.1016/j.csbj.2024.06.012
 
 ### Maintainer
 Milan Picard (milan.picard.1@ulaval.ca)
