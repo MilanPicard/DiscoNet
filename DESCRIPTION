@@ -1,7 +1,7 @@
 Type: Package
 Package: DiscoNet
 Title: Extract graph-based features from a biological network
-Version: 0.1.0
+Version: 1.0.1
 Author: Milan Picard
 Maintainer: Milan Picard <milanpicard2@gmail.com>
 Description: The functions in this package allows the user to extract
