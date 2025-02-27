@@ -544,3 +544,376 @@ RWR = function(Graph, Seeds, r = .5, attr = NULL, nCores = 1, adjacency = NULL, 
   `rownames<-`(Results[-which(Results$Node %in% Seeds), ], NULL)
 }
 
+#' Extract signature-based features
+#'
+#' Extract signature-based features from a biological network based on a list of signatures nodes.
+#' @param Graph A igraph object.
+#' @param start_nodes Features are extracted for each of these nodes
+#' @param Signature_list A named list of nodes that are in the network.
+#' @param FC_vectors A named list of fold changes values for each node in the network. 0 are put where fold changes is missing
+#' @param topo_results The results returned by the function extract_topolo
+#' @param verbose Default: TRUE. Wether or not to print the internal calculations
+#' @return Return a dataframe where columns are different features extracted from the network.
+#' @examples
+#' # Don't run
+#' # Signature = list(Signature1 = c("node7", "node9", "node13"))
+#' # Dist_signature = extract_more_si_features(Network, c("node1", "node1"), Signature)
+#' @export
+
+extract_more_si_features = function(Graph, start_nodes = vnames(Graph), Signature_list, FC_vectors, topo_results, verbose = TRUE){
+  if(verbose){message("extract_more_si_features is running...")}
+  Signature_results_list = list()
+  for(i in 1:nbr(Signature_list)){
+    sign = Signature_list[[i]]
+    sign_name = names(Signature_list)[i]
+    
+    # Calculate he interconnectivity between nodes and the signature
+    interconnectivity_result = sapply(start_nodes, function(node) interconnectivity(Graph, node, degs = sign)) %>% 
+      `names<-`(start_nodes) %>% stack %>%  dplyr::select(2,1) %>% `colnames<-`(c("Target", "Interconnectivity"))
+    
+    # Are node in signature in the neighborhood
+    DEG_in_neighborhood_result   = lapply(start_nodes, function(node) DEG_in_neighborhood(Graph, node = node, degs = sign)) %>% 
+      do.call(rbind, .) %>% as.data.frame %>% mutate(Target = start_nodes) %>% dplyr::select(3,1,2)
+    
+    # What are the topological properties of the node in subgraph of the signature
+    subgraph_topo = extract_topolo_signature_graph(Graph = Graph, start_nodes = start_nodes, Signature = sign)
+    
+    # Merge results
+    Signature_results = Reduce(function(x, y) full_join(x, y, by = "Target"), list(interconnectivity_result, DEG_in_neighborhood_result, subgraph_topo))
+    names(Signature_results)[-1] = paste0(sign_name, "_", names(Signature_results)[-1])
+    add(Signature_results_list, Signature_results)
+  }
+  Signature_results_list_merged = Reduce(function(x, y) full_join(x, y, by = "Target"), Signature_results_list)
+  
+  neighbordhood_scoring_result_list = list()
+  for(i in 1:nbr(FC_vectors)){
+    fc = FC_vectors[[i]]
+    fc_name = names(FC_vectors)[i]
+    
+    fc = fc %>% stack %>% `colnames<-`(c("fc","node"))
+    V(Graph)$fc = left_join(data.frame(name = V(Graph)$name), fc, by = c("name" = "node")) %>% pull(fc) %>% replace_na(0)
+    
+    # Simply retrieve the fold changes
+    foldi = data.frame(Target = start_nodes, fold_change = V(Graph)[start_nodes]$fc)
+    
+    # Composite features based on topological properties and fold change
+    topo_features_with_foldchange = topo_metric_with_foldchange(Graph = Graph, start_nodes = start_nodes, topo_results = topo_results) 
+    
+    # What are the topological properties of the signature nodes in the neighborhood
+    neighbordhood_scoring_result_1 = lapply(start_nodes, function(node) topo_metric_of_neighboring_signature(Graph = Graph, node = node, degs = sign, topo_results = topo_results, order = 1)) %>% 
+      do.call(rbind, .) %>% as.data.frame %>% mutate(Target = start_nodes) %>% dplyr::select(Target,everything())
+    
+    neighbordhood_scoring_result_2 = lapply(start_nodes, function(node) topo_metric_of_neighboring_signature(Graph = Graph, node = node, degs = sign, topo_results = topo_results, order = 2)) %>% 
+      do.call(rbind, .) %>% as.data.frame %>% mutate(Target = start_nodes) %>% dplyr::select(Target,everything())
+    
+    names(foldi)[-1] = paste0(fc_name, "_", names(foldi)[-1])
+    names(neighbordhood_scoring_result_1)[-1] = paste0(fc_name, "_", names(neighbordhood_scoring_result_1)[-1])
+    names(neighbordhood_scoring_result_2)[-1] = paste0(fc_name, "_", names(neighbordhood_scoring_result_2)[-1])
+    names(topo_features_with_foldchange)[-1] = paste0(fc_name, "_", names(topo_features_with_foldchange)[-1])
+    
+    results_per_foldchanges = Reduce(function(x, y) full_join(x, y, by = "Target"), list(foldi, topo_features_with_foldchange, neighbordhood_scoring_result_1, neighbordhood_scoring_result_2))
+    
+    add(neighbordhood_scoring_result_list, results_per_foldchanges)
+  }
+  neighbordhood_scoring_result_list_merged = Reduce(function(x, y) full_join(x, y, by = "Target"), neighbordhood_scoring_result_list)
+  results = full_join(Signature_results_list_merged, neighbordhood_scoring_result_list_merged, by = "Target")
+  if(verbose){message("Done.")}
+  return(results)
+}
+
+
+#' Extract signature-based features
+#'
+#' Extract signature-based features from a biological network based on a list of signatures nodes.
+#' @param Graph A igraph object.
+#' @param start_nodes Features are extracted for each of these nodes
+#' @param topo_results The results returned by the function extract_topolo
+#' @return Return something
+
+topo_metric_with_foldchange = function(Graph, start_nodes, topo_results){
+  topo_results_metric = topo_results[str_detect(colnames(topo_results), "Similarity_", T)]
+  topo_results_metric = topo_results_metric %>% filter(Target %in% start_nodes) %>% arrange(Target)
+  start_nodes_fc = V(Graph)[sort(start_nodes)]$fc
+  results = do.call(rbind, lapply(1:nrow(topo_results_metric), function(i) topo_results_metric[i, -1] * start_nodes_fc[i])) %>% 
+    mutate(Target = sort(start_nodes), .before = 1)
+  return(results)
+}
+
+
+#' Extract signature-based features
+#'
+#' Extract signature-based features from a biological network based on a list of signatures nodes.
+#' @param Graph A igraph object.
+#' @param start_nodes Features are extracted for each of these nodes
+#' @param topo_results The results returned by the function extract_topolo
+#' @param degs A node signature (not list)
+#' @param order The order of neighbors to consider
+#' @return Return something
+
+topo_metric_of_neighboring_signature = function(Graph, node, degs, topo_results = NULL, order = 1){
+  ######## get neighbors of node
+  if(is.null(topo_results)){stop("Please provide the data frame from extract_topolo")}  
+  neighbors = names(ego(graph = Graph, order = order, mindist = 1, nodes = node)[[1]])
+  
+  ######## Extract topological metrics about the neighbooring DEGS
+  topo_results_metric = topo_results[str_detect(colnames(topo_results), "Similarity_", T)]
+  topo_results_metric = topo_results_metric %>% filter(Target  %in% intersect(degs, neighbors))
+  mean_metric = apply(topo_results_metric[, -1], 2, function(x) suppressWarnings(mean(x, na.rm = TRUE)))
+  max_metric = apply(topo_results_metric[, -1], 2, function(x) suppressWarnings(max(x, na.rm = TRUE)))
+  
+  mean_metric[!is.finite(mean_metric)] = 0
+  max_metric[!is.finite(max_metric)] = 0
+  
+  names(mean_metric) = paste0(names(mean_metric),"_neighboring_signature_order_",order, "_mean")
+  names(max_metric) = paste0(names(max_metric),"_neighboring_signature_order_",order, "_max")
+  
+  ######## Extract their fold changes
+  fc_v = V(Graph)[node]$fc # for the node studied.
+  fc_nei = V(Graph)[neighbors]$fc
+  
+  # Discordant Neighboring Factor
+  if(fc_v == 0){
+    dnf = 0
+  } else {
+    sign_of_neibhoring = sign(sum(fc_nei)/fc_v)
+    dnf = sign_of_neibhoring*log(1+abs(sum(fc_nei)/fc_v), base = 1.15)
+  }
+  names(dnf) = paste0("discordant_neighborin_factor_order_", order)
+  
+  # Plain average of neighbors fc, without taking into account their direction
+  fc_nei_avg = mean(fc_nei)
+  fc_nei_avg_sum = (fc_v+fc_nei_avg)/2
+  fc_nei_avg_prod = fc_v*fc_nei_avg
+  names(fc_nei_avg_sum) = paste0("fc_nei_avg_sum_factor_order_", order)
+  names(fc_nei_avg_prod) = paste0("fc_nei_avg_prod_factor_order_", order)
+  
+  # Absolute average of neighbors fc
+  fc_nei_avg_abs = mean(abs(fc_nei))
+  fc_nei_avg_abs_sum = (abs(fc_v)+fc_nei_avg_abs)/2
+  fc_nei_avg_abs_prod = abs(fc_v)*fc_nei_avg_abs
+  names(fc_nei_avg_abs_sum) = paste0("fc_nei_avg_abs_sum_factor_order_", order)
+  names(fc_nei_avg_abs_prod) = paste0("fc_nei_avg_abs_prod_factor_order_", order)
+  
+  # Averaging only neighboors of the same direction, removing the other ones    
+  if(fc_v >= 0){
+    fc_nei_avg_dir = fc_nei[fc_nei >= 0]
+    if(nbr(fc_nei_avg_dir) == 0){fc_nei_avg_dir = 0}
+    fc_nei_avg_dir_sum = (fc_v+mean(fc_nei_avg_dir))/2
+    fc_nei_avg_dir_prod = fc_v*mean(fc_nei_avg_dir)
+  } else {
+    fc_nei_avg_dir = fc_nei[fc_nei < 0]
+    if(nbr(fc_nei_avg_dir) == 0){fc_nei_avg_dir = 0}
+    fc_nei_avg_dir_sum = (fc_v+mean(fc_nei_avg_dir))/2
+    fc_nei_avg_dir_prod = fc_v*mean(fc_nei_avg_dir)
+  }
+  names(fc_nei_avg_dir_sum) = paste0("fc_nei_avg_dir_sum_factor_order_", order)
+  names(fc_nei_avg_dir_prod) = paste0("fc_nei_avg_dir_prod_factor_order_", order)
+  
+  ######## Combined topological features of neighbors with fold changes.
+  mean_metric_fc_nei_avg_sum = (mean_metric*fc_nei_avg_sum) %>% setNames(paste0(names(mean_metric), "_avg_fc_sum"))
+  mean_metric_fc_nei_avg_prod = (mean_metric*fc_nei_avg_prod) %>% setNames(paste0(names(mean_metric), "_avg__fc_rod"))
+  mean_metric_fc_nei_avg_abs_sum = (mean_metric*fc_nei_avg_abs_sum) %>% setNames(paste0(names(mean_metric), "_avg_abs_fc_sum"))
+  mean_metric_fc_nei_avg_abs_prod = (mean_metric*fc_nei_avg_abs_prod) %>% setNames(paste0(names(mean_metric), "_avg_abs__fc_rod"))
+  mean_metric_fc_nei_avg_dir_sum = (mean_metric*fc_nei_avg_dir_sum) %>% setNames(paste0(names(mean_metric), "_avg_dir_fc_sum"))
+  mean_metric_fc_nei_avg_dir_prod = (mean_metric*fc_nei_avg_dir_prod) %>% setNames(paste0(names(mean_metric), "_avg_dir__fc_rod"))
+  
+  max_metric_fc_nei_avg_sum = (max_metric*fc_nei_avg_sum) %>% setNames(paste0(names(max_metric), "_avg_fc_sum"))
+  max_metric_fc_nei_avg_prod = (max_metric*fc_nei_avg_prod) %>% setNames(paste0(names(max_metric), "_avg__fc_rod"))
+  max_metric_fc_nei_avg_abs_sum = (max_metric*fc_nei_avg_abs_sum) %>% setNames(paste0(names(max_metric), "_avg_abs_fc_sum"))
+  max_metric_fc_nei_avg_abs_prod = (max_metric*fc_nei_avg_abs_prod) %>% setNames(paste0(names(max_metric), "_avg_abs__fc_rod"))
+  max_metric_fc_nei_avg_dir_sum = (max_metric*fc_nei_avg_dir_sum) %>% setNames(paste0(names(max_metric), "_avg_dir_fc_sum"))
+  max_metric_fc_nei_avg_dir_prod = (max_metric*fc_nei_avg_dir_prod) %>% setNames(paste0(names(max_metric), "_avg_dir__fc_rod"))
+  
+  # Extract similarities with DEGS
+  topo_results_simi = topo_results[c("Target", str_subset(colnames(topo_results), "Similarity_"))]
+  topo_results_simi = topo_results_simi %>% dplyr::filter(Target  %in% node)
+  topo_results_simi = topo_results_simi[str_remove(colnames(topo_results_simi), "Similarity_") %in% intersect(degs, neighbors)]
+  similarity_with_DEGS = rowMeans(topo_results_simi)
+  if(!is.finite(similarity_with_DEGS)){similarity_with_DEGS = 0}
+  similarity_with_DEGS = similarity_with_DEGS %>% `names<-`(paste0("similarity_with_DEGS_order_", order))
+  # Return results
+  results = c(mean_metric, max_metric,
+              discordant_neighborin_factor = dnf,
+              fc_nei_avg_sum = fc_nei_avg_sum,
+              fc_nei_avg_prod = fc_nei_avg_prod,
+              fc_nei_avg_abs_sum = fc_nei_avg_abs_sum,
+              fc_nei_avg_abs_prod = fc_nei_avg_abs_prod,
+              fc_nei_avg_dir_sum = fc_nei_avg_dir_sum,
+              fc_nei_avg_dir_prod = fc_nei_avg_dir_prod,
+              mean_metric_fc_nei_avg_sum, mean_metric_fc_nei_avg_prod,
+              mean_metric_fc_nei_avg_abs_sum, mean_metric_fc_nei_avg_abs_prod,
+              mean_metric_fc_nei_avg_dir_sum, mean_metric_fc_nei_avg_dir_prod,
+              max_metric_fc_nei_avg_sum, max_metric_fc_nei_avg_prod,
+              max_metric_fc_nei_avg_abs_sum, max_metric_fc_nei_avg_abs_prod,
+              max_metric_fc_nei_avg_dir_sum, max_metric_fc_nei_avg_dir_prod,
+              similarity_with_DEGS)
+  return(results)
+}
+
+
+#' Extract signature-based features
+#'
+#' Extract signature-based features from a biological network based on a list of signatures nodes.
+#' @param Graph A igraph object.
+#' @param start_nodes Features are extracted for each of these nodes
+#' @param topo_results The results returned by the function extract_topolo
+#' @param Signature A node signature (not list)
+#' @param order The order of neighbors to consider
+#' @param verbose Default: TRUE. Wether or not to print the internal calculations
+#' @return Return something
+ 
+extract_topolo_signature_graph = function(Graph, start_nodes = vnames(Graph), Signature, verbose = TRUE){
+  if(verbose){message("extract_topolo_signature_graph is running...")}
+  start_node_nei = lapply(neighborhood(graph = Graph, order = 1, nodes = start_nodes, mindist = 1), names)
+  
+  #### Simple features based on already connected signature components
+  Disconnected_subgraph = subgraph(graph = Graph, vids = intersect(Signature, vnames(Graph)))
+  component_Graph_DEG = components(Disconnected_subgraph)
+  compo_list = split(names(component_Graph_DEG$membership), component_Graph_DEG$membership)
+  compo_list = compo_list[nbrs(compo_list) != 1]
+  
+  # Get list of connected subgraph to the node
+  feature_simple = list()
+  for(node_i in 1:nbr(start_nodes)){
+    # Get node neighbors
+    compo_list_touch = compo_list[sapply(compo_list, function(compo) any(start_node_nei[[node_i]] %in% compo))]
+    compo_list_touch = compo_list_touch[nbrs(compo_list_touch) != 0]
+    
+    # Get metric
+    a1 = nbr(compo_list_touch)
+    a2 = sum(nbrs(compo_list_touch))
+    a3 = (a1/nbr(start_node_nei[[node_i]]))*100
+    a4 = (a2/nbr(start_node_nei[[node_i]]))*100
+    
+    add(feature_simple, c(number_of_DEG_components_touched = a1, number_of_DEG_touched_in_component = a2, number_of_DEG_components_touched_perc = a3, number_of_DEG_touched_in_component_perc = a4))
+  }
+  feature_simple_df = do.call(rbind, feature_simple) %>% as.data.frame %>% dplyr::mutate(Target = start_nodes, .before = 1)
+  
+  #### Topological features based on signature subgraph
+  Connected_subgraph = extract_subgraph(graph = Graph, terminals = intersect(Signature, vnames(Graph)))
+  
+  node_remaining = intersect(vnames(Connected_subgraph), start_nodes)
+  topo_results = list(
+    Degree_in = igraph::degree(Connected_subgraph, v = node_remaining, mode = "in"),
+    Degree_out = igraph::degree(Connected_subgraph, v = node_remaining, mode = "out"),
+    Degree_all = igraph::degree(Connected_subgraph, v = node_remaining, mode = "all"),
+    Closeness_out = signif(igraph::closeness(Connected_subgraph, vids = node_remaining, mode = "out"), 3),
+    Closeness_all = signif(igraph::closeness(Connected_subgraph, vids = node_remaining, mode = "all"), 3),
+    Eccentricity_out = igraph::eccentricity(Connected_subgraph, vids = node_remaining, mode = "out"),
+    Eccentricity_all = igraph::eccentricity(Connected_subgraph, vids = node_remaining, mode = "all"),
+    Eigen_centrality = signif(igraph::eigen_centrality(Connected_subgraph)$vector[node_remaining], 3),
+    Betweenness = signif(igraph::betweenness(Connected_subgraph, v = node_remaining), 3),
+    Harmonic_centrality = signif(igraph::harmonic_centrality(graph = Connected_subgraph, vids = node_remaining, mode = "out"), 4))
+  
+  # Aggregate the results
+  resi = do.call(cbind, topo_results) %>% as.data.frame()
+  colnames(resi) = paste0(colnames(resi), "_subgraph")
+  resi = rownames_to_column(resi, var = "Target")
+  
+  results = full_join(feature_simple_df, resi, by = "Target")
+  results[is.na(results)] = 0
+  return(results)
+}
+
+
+#' Extract signature-based features
+#'
+#' Extract signature-based features from a biological network based on a list of signatures nodes.
+#' @param Graph A igraph object.
+#' @param start_nodes Features are extracted for each of these nodes
+#' @param degs A node signature (not list)
+#' @param order The order of neighbors to consider
+#' @return Return something
+DEG_in_neighborhood = function(Graph, node, degs, order = 1){
+  node_neighbors = names(ego(graph = Graph, order = order, mindist = 1, nodes = node)[[1]])
+  deg_amount = nbrintersect(node_neighbors, degs)
+  deg_perc = (deg_amount/nbr(node_neighbors))*100
+  if(!is.finite(deg_perc)){deg_perc = 0}
+  return(c(deg_amount = deg_amount, deg_perc = deg_perc))
+}
+
+#' Extract signature-based features
+#'
+#' Extract signature-based features from a biological network based on a list of signatures nodes.
+#' @param Graph A igraph object.
+#' @param start_nodes Features are extracted for each of these nodes
+#' @param degs A node signature (not list)
+#' @param order The order of neighbors to consider
+#' @return Return something
+interconnectivity = function(Graph, node, degs, order = 1){
+  icn = function(Graph, vertex1, vertex2){
+    friend = as.numeric(are_adjacent(graph = Graph, v1 = vertex1, v2 = vertex2))
+    vertex1_neighbors = names(ego(graph = Graph, order = order, mindist = 1, nodes = vertex1)[[1]])
+    vertex2_neighbors = names(ego(graph = Graph, order = order, mindist = 1, nodes = vertex2)[[1]])
+    friend*((2+nbrintersect(vertex1_neighbors,vertex2_neighbors))/(sqrt(nbr(vertex1_neighbors)*nbr(vertex2_neighbors))))
+  }
+  degs = setdiff(degs, node)
+  deg = degs[1]
+  return(sum(sapply(degs, function(deg) icn(Graph = Graph, vertex1 = node, vertex2 = deg)))/nbr(degs))
+}
+
+#' Extract signature-based features
+#'
+#' Extract signature-based features from a biological network based on a list of signatures nodes.
+#' @param Graph A igraph object.
+#' @param start_nodes Features are extracted for each of these nodes
+#' @param degs A node signature (not list)
+#' @param order The order of neighbors to consider
+#' @return Return something
+#' @export
+extract_subgraph <- function(graph, terminals){
+  # Convert to undirected if necessary
+  graph <- as.undirected(graph)
+  the_subgraph = subgraph(graph = graph, terminals)
+  if(nbr(components(the_subgraph)$csize) == 1){
+    return(the_subgraph)
+  }
+  
+  please_some_name = function(x){
+    if(any(class(x) %in% c("matrix"))){
+      return(rownames(x))
+    } else {
+      return(names(x))
+    }
+  }
+  
+  ### Calculate closest terminals for each terminal
+  # calculate distance matrice
+  graph_distance_sp = distances(graph = graph, v = terminals, to = terminals)
+  diag(graph_distance_sp) = 100
+  closest_term_to_each_term = apply(graph_distance_sp, 2, function(x) names(which(x == min(x, na.rm = TRUE))))
+  
+  # closest_term_to_each_term = lapply(1:ncol(graph_distance_sp), function(i) please_some_name(graph_distance_sp[graph_distance_sp[, i] == min_dist_per_terminals[i], ]))
+  # names(closest_term_to_each_term) = terminals
+  
+  # Get all combinations of terminal pairs
+  # terminals_pair_comb = do.call(rbind, lapply(1:nbr(terminals), function(i) data.frame(terminals[i], closest_term_to_each_term[[i]])))
+  # terminals_pair_comb = combn(terminals, 2)
+  
+  # Get all nodes used for shortest paths across all combinations
+  sp_list = list()
+  for(i in 1:nbr(terminals)){
+    # Get all shortest path between the two
+    sp <- lapply(all_shortest_paths(graph, from = terminals[i], to = closest_term_to_each_term[[i]])$vpaths, function(x) setdiff(names(x), terminals))
+    sp = sp[nbrs(sp) >= 1]
+    add(sp_list, sp)
+  }
+  
+  # Retrieve the number of times a node within a sp is found
+  # Sort them by importance (frequency)
+  all_unique_nodes_present_in_each_pair_sp = lapply(sp_list, function(x) unique(unlist(x)))
+  node_importance_for_creating_sp = table(unlist(all_unique_nodes_present_in_each_pair_sp)) %>% sort(decreasing = TRUE)
+  node_importance_for_creating_sp = split(names(node_importance_for_creating_sp), as.vector(node_importance_for_creating_sp))
+  node_importance_for_creating_sp = node_importance_for_creating_sp[order(as.numeric(names(node_importance_for_creating_sp)), decreasing = TRUE)]
+  
+  # for each important node, create a subgraph, if the subgraph is not fully connected, continue.
+  node_to_add = c()
+  for(imp_node in node_importance_for_creating_sp){
+    add(node_to_add, imp_node)
+    the_subgraph = subgraph(graph = graph, c(terminals, node_to_add))
+    if(nbr(components(the_subgraph)$csize) == 1){
+      return(the_subgraph)
+    }
+  }
+}
+
