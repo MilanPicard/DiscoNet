@@ -15,7 +15,7 @@ VignetteBuilder:
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Imports: 
     dplyr,
     igraph,
@@ -41,7 +41,6 @@ Suggests:
     purrr,
     rmarkdown,
     RWeka,
+    testthat (>= 3.0.0),
     tidyverse
-    
-
-
+Config/testthat/edition: 3
